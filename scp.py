@@ -72,7 +72,7 @@ class SCPClient(object):
         self.channel = self.transport.open_session()
         self.channel.settimeout(self.socket_timeout)
         scp_command = ('scp -t %s', 'scp -r -t %s')[recursive]
-        self.channel.exec_command(scp_command % remote_path)
+        self.channel.exec_command(scp_command % re.escape(remote_path))
         self._recv_confirm()
 
         if not isinstance(files, (list, tuple)):
@@ -109,7 +109,7 @@ class SCPClient(object):
         self.channel = self.transport.open_session()
         self.channel.settimeout(self.socket_timeout)
         self.channel.exec_command("scp%s%s -f %s" %
-                                  (rcsv, prsv, _sh_quote(remote_path)))
+                                  (rcsv, prsv, re.escape(remote_path)))
         self._recv_all()
 
         if self.channel:
@@ -132,7 +132,7 @@ class SCPClient(object):
                 self._send_time(mtime, atime)
             file_hdl = file(name, 'rb')
             self.channel.sendall("C%s %d %s\n" %
-                                 (mode, size, _sh_quote(basename)))
+                                 (mode, size, basename))
             self._recv_confirm()
             file_pos = 0
             if self._progress:
@@ -330,19 +330,3 @@ class SCPClient(object):
 class SCPException(Exception):
     """SCP exception class"""
     pass
-
-
-# this is quote from the shlex module, added in py3.3
-_find_unsafe = re.compile(r'[^\w@%+=:,./-]').search
-
-
-def _sh_quote(s):
-    """Return a shell-escaped version of the string *s*."""
-    if not s:
-        return "''"
-    if _find_unsafe(s) is None:
-        return s
-
-    # use single quotes, and put single quotes into double quotes
-    # the string $'b is then quoted as '$'"'"'b'
-    return "'" + s.replace("'", "'\"'\"'") + "'"
